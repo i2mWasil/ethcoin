@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 
 export async function connectWallet() {
   if (!window.ethereum) {
-    alert("Please install MetaMask to use USX Protocol.");
+    alert("Please install MetaMask to use EthCoin Protocol.");
     return null;
   }
 

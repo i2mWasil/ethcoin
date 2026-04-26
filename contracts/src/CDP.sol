@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./USX.sol";
+import "./ETC.sol";
 import "./CreditScoreNFT.sol";
 
 contract CDP {
-    USX public usx;
+    ETC public etc;
     CreditScoreNFT public creditNFT;
 
     struct Position {
@@ -15,8 +15,8 @@ contract CDP {
 
     mapping(address => Position) public positions;
 
-    constructor(address _usx, address _creditNFT) {
-        usx = USX(_usx);
+    constructor(address _etc, address _creditNFT) {
+        etc = ETC(_etc);
         creditNFT = CreditScoreNFT(_creditNFT);
     }
 
@@ -39,7 +39,7 @@ contract CDP {
         positions[msg.sender].collateral += msg.value;
         positions[msg.sender].debt += mintAmount;
 
-        usx.mint(msg.sender, mintAmount);
+        etc.mint(msg.sender, mintAmount);
     }
 
     function repay() external payable {
@@ -51,6 +51,6 @@ contract CDP {
 
         pos.debt -= repayAmount;
 
-        usx.burn(msg.sender, repayAmount);
+        etc.burn(msg.sender, repayAmount);
     }
 }

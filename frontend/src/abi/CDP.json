@@ -3,7 +3,7 @@
     "type": "constructor",
     "inputs": [
       {
-        "name": "_usx",
+        "name": "_etc",
         "type": "address",
         "internalType": "address"
       },
@@ -34,6 +34,19 @@
     "inputs": [],
     "outputs": [],
     "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "etc",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract ETC"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -84,18 +97,5 @@
     "inputs": [],
     "outputs": [],
     "stateMutability": "payable"
-  },
-  {
-    "type": "function",
-    "name": "usx",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract USX"
-      }
-    ],
-    "stateMutability": "view"
   }
 ]

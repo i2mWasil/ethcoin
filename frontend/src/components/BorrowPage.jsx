@@ -75,9 +75,9 @@ export default function BorrowPage({ signer, ethBalance, ethPrice, creditScore, 
         <h1 style={{
           fontFamily: "var(--font-display)", fontSize: "38px", fontWeight: 800,
           letterSpacing: "-1.5px", marginBottom: "8px",
-        }}>Mint USX</h1>
+        }}>Mint ETC</h1>
         <p style={{ color: "var(--text-secondary)", fontSize: "14px", maxWidth: "500px" }}>
-          Deposit ETH collateral to mint USX. Your required collateral ratio is determined
+          Deposit ETH collateral to mint EthCoin (ETC). Your required collateral ratio is determined
           by your on-chain credit score.
         </p>
       </div>
@@ -163,13 +163,13 @@ export default function BorrowPage({ signer, ethBalance, ethPrice, creditScore, 
             }}>↓</div>
           </div>
 
-          {/* USX output */}
+          {/* ETC output */}
           <div className="card" style={{ padding: "20px" }}>
             <div style={{
               fontSize: "10px", color: "var(--text-muted)",
               textTransform: "uppercase", letterSpacing: "1.5px",
               fontFamily: "var(--font-mono)", marginBottom: "12px",
-            }}>Mint USX</div>
+            }}>Mint ETC</div>
             <div style={{
               background: "var(--bg-deep)",
               border: "1px solid var(--bg-border)",
@@ -184,7 +184,7 @@ export default function BorrowPage({ signer, ethBalance, ethPrice, creditScore, 
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "14px", flexShrink: 0,
               }}>$</div>
-              <div style={{ fontSize: "14px", fontWeight: 600, flexShrink: 0, width: "36px" }}>USX</div>
+              <div style={{ fontSize: "14px", fontWeight: 600, flexShrink: 0, width: "36px" }}>ETC</div>
               <div style={{
                 flex: 1, textAlign: "right",
                 fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500,
