@@ -1,26 +1,93 @@
-import { useState } from "react";
-import Wallet from "./components/Wallet";
-import Dashboard from "./components/Dashboard";
-import Deposit from "./components/Deposit";
+import { useState, useEffect, useCallback } from "react";
+import LandingPage from "./components/LandingPage";
+import Layout from "./components/Layout";
+import DashboardPage from "./components/DashboardPage";
+import BorrowPage from "./components/BorrowPage";
+import CreditProfilePage from "./components/CreditProfilePage";
+import HistoryPage from "./components/HistoryPage";
+import { connectWallet, getEthBalance, getEthPrice } from "./utils/connect";
+import { fetchPosition, fetchCreditScore } from "./utils/contracts";
 
-function App() {
-  const [signer, setSigner] = useState(null);
-  const [address, setAddress] = useState("");
+export default function App() {
+  const [signer, setSigner]       = useState(null);
+  const [address, setAddress]     = useState("");
+  const [page, setPage]           = useState("dashboard");
+  const [ethBalance, setEthBalance] = useState("0.0000");
+  const [ethPrice, setEthPrice]   = useState(2500);
+  const [position, setPosition]   = useState({ collateral: 0, debt: 0 });
+  const [creditScore, setCreditScore] = useState(0);
+  const [loading, setLoading]     = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleConnect = useCallback(async () => {
+    setLoading(true);
+    const res = await connectWallet();
+    if (!res) { setLoading(false); return; }
+    const addr = await res.signer.getAddress();
+    setSigner(res.signer);
+    setAddress(addr);
+    setLoading(false);
+  }, []);
+
+  // Auto-connect if already connected
+  useEffect(() => {
+    if (window.ethereum) {
+      window.ethereum.request({ method: "eth_accounts" }).then(async (accounts) => {
+        if (accounts.length > 0) {
+          const res = await connectWallet();
+          if (res) {
+            const addr = await res.signer.getAddress();
+            setSigner(res.signer);
+            setAddress(addr);
+          }
+        }
+      });
+
+      window.ethereum.on("accountsChanged", (accounts) => {
+        if (accounts.length === 0) {
+          setSigner(null);
+          setAddress("");
+        } else {
+          handleConnect();
+        }
+      });
+    }
+  }, []);
+
+  // Fetch on-chain data when connected
+  useEffect(() => {
+    if (!signer || !address) return;
+
+    async function load() {
+      const [bal, price, pos, score] = await Promise.all([
+        getEthBalance(address),
+        getEthPrice(),
+        fetchPosition(signer, address),
+        fetchCreditScore(signer, address),
+      ]);
+      setEthBalance(bal);
+      setEthPrice(price);
+      setPosition(pos);
+      setCreditScore(score);
+    }
+
+    load();
+  }, [signer, address, refreshKey]);
+
+  const refresh = () => setRefreshKey(k => k + 1);
+
+  if (!signer) {
+    return <LandingPage onConnect={handleConnect} loading={loading} />;
+  }
+
+  const pageProps = { signer, address, ethBalance, ethPrice, position, creditScore, refresh };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Hybrid CDP Protocol</h1>
-
-      <Wallet setSigner={setSigner} setAddress={setAddress} />
-
-      {signer && (
-        <>
-          <Dashboard signer={signer} address={address} />
-          <Deposit signer={signer} />
-        </>
-      )}
-    </div>
+    <Layout page={page} setPage={setPage} address={address} creditScore={creditScore} onConnect={handleConnect}>
+      {page === "dashboard" && <DashboardPage {...pageProps} />}
+      {page === "borrow"    && <BorrowPage {...pageProps} />}
+      {page === "credit"    && <CreditProfilePage {...pageProps} />}
+      {page === "history"   && <HistoryPage {...pageProps} />}
+    </Layout>
   );
 }
-
-export default App;
