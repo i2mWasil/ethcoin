@@ -76,6 +76,6 @@ temp/
 
 
 ##Dataset creation
-*wallets.txt
-*wallet_data.csv
+# *wallets.txt
+# *wallet_data.csv
 

@@ -20,28 +20,16 @@ def build_dataset():
     rows = []
 
     for wallet in tqdm(wallets):
-        logging.info(f"🔍 Processing wallet: {wallet}")
-
-        # Fetch transactions
         txs = get_transactions(wallet)
-        logging.info(f"📦 Transactions fetched: {len(txs)}")
-
-        # Extract features
         features = extract_features(txs)
-        logging.info(f"📊 Features: {features}")
-
-        # Generate score
         score = generate_score(features)
-        logging.info(f"⭐ Score: {score}")
 
-        # Final row
         row = {
             "wallet": wallet,
             **features,
             "score": score
         }
 
-        logging.info(f"✅ Row added: {row}\n")
 
         rows.append(row)
 
