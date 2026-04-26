@@ -28,7 +28,7 @@ This protocol introduces:
 ### User Flow
 
 1. User deposits ETH as collateral
-2. Protocol mints a stable token (**USX**)
+2. Protocol mints a stable token (**ETC**)
 3. AI evaluates wallet behavior
 4. Credit score is updated (stored as NFT)
 5. Future loans require **less collateral**
@@ -40,7 +40,7 @@ This protocol introduces:
 ```text
 User → Deposit ETH → CDP Contract
      ↓
-Mint USX (loan)
+Mint ETC (loan)
      ↓
 AI Model analyzes wallet
      ↓
@@ -56,7 +56,7 @@ Next loan uses improved collateral ratio
 ### 1. CDP Engine
 
 * Accepts ETH deposits
-* Mints stablecoin (USX)
+* Mints stablecoin (ETC)
 * Tracks user debt and collateral
 
 ### 2. AI Credit Scoring
@@ -88,9 +88,9 @@ Next loan uses improved collateral ratio
 
 ---
 
-## What is USX?
+## What is ETC?
 
-USX is an ERC-20 token representing:
+ETC is an ERC-20 token representing:
 
 > Borrowed value against ETH collateral
 
@@ -260,7 +260,7 @@ forge script script/Deploy.s.sol \
 You’ll get contract addresses:
 
 ```text
-USX → 0x...
+ETC → 0x...
 CreditScoreNFT → 0x...
 CDP → 0x...
 ```
@@ -308,7 +308,7 @@ http://localhost:5173
 
 * Connect wallet
 * Deposit ETH
-* Mint USX
+* Mint ETC
 * View credit score
 
 ---
