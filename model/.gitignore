@@ -1,0 +1,5 @@
+__pycache__/
+/dataset/.env
+.venv
+/dataset/wallets.txt
+/dataset/wallet_data.csv
