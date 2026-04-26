@@ -1,4 +1,4 @@
-# AI-Powered Hybrid CDP Protocol
+# EthCoin: AI-Powered Hybrid CDP Protocol
 
 ## Overview
 
