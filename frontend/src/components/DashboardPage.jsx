@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { getTier, getHealthColor, getCollateralRatioFromTier } from "../utils/contracts";
 
 function StatCard({ label, value, sub, icon, accent, loading }) {
@@ -55,7 +54,7 @@ export default function DashboardPage({ address, ethBalance, ethPrice, position,
   };
 
   // Score arc
-  const pct = Math.min(creditScore / 1000, 1);
+  const pct = Math.min(creditScore / 100, 1);
   const circumference = 2 * Math.PI * 36;
   const dash = pct * circumference;
 
@@ -80,7 +79,7 @@ export default function DashboardPage({ address, ethBalance, ethPrice, position,
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
         <StatCard
           label="ETC Balance"
-          value={usxBalance > 0 ? `${usxBalance.toLocaleString("en-US", { minimumFractionDigits: 2 })}.00` : "0.00"}
+          value={usxBalance > 0 ? usxBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
           sub={usxBalance > 0 ? "+2.4% this week" : "No active debt"}
           icon="◎"
           loading={loading}

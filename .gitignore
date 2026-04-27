@@ -33,6 +33,7 @@ __pycache__/
 *.pyd
 *.pkl
 *.joblib
+!server/model/weights.pkl
 
 # Virtual environments
 venv/
@@ -78,4 +79,3 @@ temp/
 ##Dataset creation
 # *wallets.txt
 # *wallet_data.csv
-

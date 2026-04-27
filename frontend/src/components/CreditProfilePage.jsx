@@ -1,11 +1,11 @@
-import { getTier } from "../utils/contracts";
+import { useState } from "react";
+import { getCollateralRatioFromTier, getTier } from "../utils/contracts";
 
 const TIERS = [
-  { label: "Bronze",  min: 0,   max: 199,  level: 1 },
-  { label: "Silver",  min: 200, max: 399,  level: 2 },
-  { label: "Gold",    min: 400, max: 599,  level: 3 },
-  { label: "Diamond", min: 600, max: 799,  level: 4 },
-  { label: "Master",  min: 800, max: 1000, level: 5 },
+  { label: "Bronze", min: 1, max: 30, level: 1 },
+  { label: "Silver", min: 31, max: 60, level: 2 },
+  { label: "Gold", min: 61, max: 85, level: 3 },
+  { label: "Diamond", min: 86, max: 100, level: 4 },
 ];
 
 function ScoreFactor({ icon, label, value, points, color, pct }) {
@@ -43,25 +43,46 @@ function ScoreFactor({ icon, label, value, points, color, pct }) {
   );
 }
 
-export default function CreditProfilePage({ address, creditScore }) {
+export default function CreditProfilePage({ address, creditScore, syncCreditScore }) {
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(null);
+  const [syncTxHash, setSyncTxHash] = useState(null);
   const tier = getTier(creditScore);
+  const collateralRatio = getCollateralRatioFromTier(creditScore);
+  const borrowApr = creditScore > 85 ? "2.0%" : creditScore > 60 ? "2.2%" : creditScore > 30 ? "2.5%" : "3.0%";
 
   // Compute factors from credit score (approximate breakdown)
-  const walletAgePts   = Math.floor(creditScore * 0.15);
-  const repayPts       = Math.floor(creditScore * 0.4);
-  const defiPts        = Math.floor(creditScore * 0.1);
-  const govPts         = creditScore >= 400 ? Math.floor(creditScore * 0.05) : 0;
+  const walletAgePts = Math.round(creditScore * 0.25);
+  const repayPts = Math.round(creditScore * 0.4);
+  const defiPts = Math.round(creditScore * 0.2);
+  const govPts = tier.level >= 3 ? Math.round(creditScore * 0.15) : 0;
 
   const tierColors = {
     Bronze:  { bg: "linear-gradient(135deg, #92400e, #b45309)", text: "#f59e0b" },
     Silver:  { bg: "linear-gradient(135deg, #4b5563, #9ca3af)", text: "#d1d5db" },
     Gold:    { bg: "linear-gradient(135deg, #92400e, #f59e0b)", text: "#fcd34d" },
     Diamond: { bg: "linear-gradient(135deg, #1e40af, #7c3aed)", text: "#a78bfa" },
-    Master:  { bg: "linear-gradient(135deg, #7c3aed, #ec4899)", text: "#f9a8d4" },
     Unranked:{ bg: "linear-gradient(135deg, #1f2937, #374151)", text: "#9ca3af" },
   };
 
   const tc = tierColors[tier.label] || tierColors.Unranked;
+  const handleSync = async () => {
+    if (!syncCreditScore || !address) {
+      return;
+    }
+
+    setSyncing(true);
+    setSyncError(null);
+    setSyncTxHash(null);
+    try {
+      const result = await syncCreditScore(address);
+      setSyncTxHash(result.tx_hash || null);
+    } catch (err) {
+      setSyncError(err?.message || "Unable to sync the credit score.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <div style={{ animation: "fadeInUp 0.35s ease forwards", maxWidth: "900px" }}>
@@ -132,6 +153,49 @@ export default function CreditProfilePage({ address, creditScore }) {
                 fontFamily: "var(--font-mono)",
                 letterSpacing: "1px",
               }}>{tier.label.toUpperCase()}</span>
+            </div>
+            <div style={{ marginTop: "18px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+              <button
+                onClick={handleSync}
+                disabled={syncing || !address}
+                style={{
+                  background: syncing ? "rgba(124,58,237,0.35)" : "linear-gradient(135deg, #7c3aed, #4f46e5)",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "10px 16px",
+                  color: "#fff",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  fontFamily: "var(--font-display)",
+                  cursor: syncing ? "wait" : "pointer",
+                }}
+              >
+                {syncing ? "Syncing..." : "Refresh On-Chain Score"}
+              </button>
+              {syncTxHash && (
+                <a
+                  href={`https://sepolia.etherscan.io/tx/${syncTxHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    color: "#10b981",
+                    textDecoration: "none",
+                    fontSize: "11px",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  Score update tx: {syncTxHash.slice(0, 12)}...
+                </a>
+              )}
+              {syncError && (
+                <span style={{
+                  color: "#f59e0b",
+                  fontSize: "11px",
+                  fontFamily: "var(--font-mono)",
+                }}>
+                  {syncError}
+                </span>
+              )}
             </div>
           </div>
 
@@ -285,18 +349,18 @@ export default function CreditProfilePage({ address, creditScore }) {
               color="linear-gradient(90deg, #f59e0b, #d97706)"
               pct={45}
             />
-            <div className="card" style={{ padding: "16px 20px", opacity: creditScore >= 400 ? 1 : 0.5 }}>
+            <div className="card" style={{ padding: "16px 20px", opacity: tier.level >= 3 ? 1 : 0.5 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <span style={{ fontSize: "18px" }}>🔒</span>
                   <div>
                     <div style={{ fontSize: "14px", fontWeight: 600 }}>Governance</div>
                     <div style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", marginTop: "2px" }}>
-                      {creditScore >= 400 ? "Active governance participant" : "Stake ETC to unlock voting power modifiers."}
+                      {tier.level >= 3 ? "Active governance participant" : "Reach Gold tier to unlock voting power modifiers."}
                     </div>
                   </div>
                 </div>
-                {creditScore < 400 ? (
+                {tier.level < 3 ? (
                   <span style={{
                     padding: "3px 10px",
                     background: "var(--bg-deep)",
@@ -326,9 +390,9 @@ export default function CreditProfilePage({ address, creditScore }) {
               {tier.label} Tier Benefits
             </div>
             {[
-              { label: "Collateral Ratio", value: tier.level >= 4 ? "100%" : tier.level >= 3 ? "110%" : tier.level >= 2 ? "120%" : "150%" },
-              { label: "Borrow APR",       value: tier.level >= 4 ? "2.0%" : tier.level >= 3 ? "2.2%" : "2.5%" },
-              { label: "Voting Multiplier", value: tier.level >= 4 ? "1.5×" : "1.0×" },
+              { label: "Collateral Ratio", value: `${collateralRatio}%` },
+              { label: "Borrow APR", value: borrowApr },
+              { label: "Voting Multiplier", value: tier.level >= 4 ? "1.5x" : tier.level >= 3 ? "1.2x" : "1.0x" },
             ].map(b => (
               <div key={b.label} style={{
                 display: "flex", justifyContent: "space-between",

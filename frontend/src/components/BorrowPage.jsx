@@ -2,11 +2,23 @@ import { useState, useMemo } from "react";
 import { ethers } from "ethers";
 import { depositAndMint, getTier, getCollateralRatioFromTier } from "../utils/contracts";
 
-export default function BorrowPage({ signer, ethBalance, ethPrice, creditScore, position, refresh }) {
+export default function BorrowPage({
+  signer,
+  address,
+  ethBalance,
+  ethPrice,
+  creditScore,
+  position,
+  refresh,
+  syncCreditScore,
+}) {
   const [ethAmount, setEthAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState(null);
   const [error, setError] = useState(null);
+  const [scoreSyncing, setScoreSyncing] = useState(false);
+  const [scoreSyncError, setScoreSyncError] = useState(null);
+  const [scoreSyncTxHash, setScoreSyncTxHash] = useState(null);
 
   const tier = getTier(creditScore);
   const requiredRatio = getCollateralRatioFromTier(creditScore);
@@ -15,7 +27,7 @@ export default function BorrowPage({ signer, ethBalance, ethPrice, creditScore, 
   const ethVal = parseFloat(ethAmount) || 0;
   const usxOut = ethVal > 0 ? (ethVal * ethPrice * (100 / requiredRatio)).toFixed(2) : "0.00";
   const liquidationPrice = ethVal > 0 ? (ethPrice * 0.86).toFixed(2) : "0.00";
-  const borrowAPR = creditScore >= 800 ? 2.0 : creditScore >= 600 ? 2.2 : creditScore >= 400 ? 2.5 : 3.0;
+  const borrowAPR = creditScore > 85 ? 2.0 : creditScore > 60 ? 2.2 : creditScore > 30 ? 2.5 : 3.0;
 
   const setPercent = (pct) => {
     const max = parseFloat(ethBalance) || 0;
@@ -43,7 +55,21 @@ export default function BorrowPage({ signer, ethBalance, ethPrice, creditScore, 
       const receipt = await depositAndMint(signer, ethVal);
       setTxHash(receipt.hash || receipt.transactionHash);
       setEthAmount("");
+      setScoreSyncError(null);
+      setScoreSyncTxHash(null);
       refresh();
+
+      if (syncCreditScore && address) {
+        setScoreSyncing(true);
+        try {
+          const result = await syncCreditScore(address);
+          setScoreSyncTxHash(result.tx_hash || null);
+        } catch (syncErr) {
+          setScoreSyncError(syncErr?.message || "Mint succeeded, but score sync failed.");
+        } finally {
+          setScoreSyncing(false);
+        }
+      }
     } catch (err) {
       // Show the actual revert reason, not a generic message
       const msg =
@@ -226,6 +252,56 @@ export default function BorrowPage({ signer, ethBalance, ethPrice, creditScore, 
                 style={{ color: "#10b981", textDecoration: "underline" }}
               >
                 {txHash.slice(0, 20)}...
+              </a>
+            </div>
+          )}
+
+          {scoreSyncing && (
+            <div style={{
+              padding: "12px 16px",
+              background: "rgba(59,130,246,0.1)",
+              border: "1px solid rgba(59,130,246,0.25)",
+              borderRadius: "10px",
+              fontSize: "12px",
+              color: "#60a5fa",
+              fontFamily: "var(--font-mono)",
+            }}>
+              Syncing your updated credit score on-chain...
+            </div>
+          )}
+
+          {scoreSyncError && (
+            <div style={{
+              padding: "12px 16px",
+              background: "rgba(245,158,11,0.1)",
+              border: "1px solid rgba(245,158,11,0.3)",
+              borderRadius: "10px",
+              fontSize: "12px",
+              color: "#f59e0b",
+              fontFamily: "var(--font-mono)",
+            }}>
+              {scoreSyncError}
+            </div>
+          )}
+
+          {scoreSyncTxHash && (
+            <div style={{
+              padding: "12px 16px",
+              background: "rgba(16,185,129,0.1)",
+              border: "1px solid rgba(16,185,129,0.3)",
+              borderRadius: "10px",
+              fontSize: "12px",
+              color: "#10b981",
+              fontFamily: "var(--font-mono)",
+            }}>
+              AI score updated:{" "}
+              <a
+                href={`https://sepolia.etherscan.io/tx/${scoreSyncTxHash}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "#10b981", textDecoration: "underline" }}
+              >
+                {scoreSyncTxHash.slice(0, 20)}...
               </a>
             </div>
           )}

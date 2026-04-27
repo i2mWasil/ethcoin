@@ -6,8 +6,13 @@ const CDP_ADDRESS = import.meta.env.VITE_CDP_ADDRESS;
 const NFT_ADDRESS = import.meta.env.VITE_NFT_ADDRESS;
 
 export function getContracts(signer) {
+  if (!signer) {
+    throw new Error("Wallet signer is required.");
+  }
+
   const cdp = new ethers.Contract(CDP_ADDRESS, CDP_ABI, signer);
-  const nft = new ethers.Contract(NFT_ADDRESS, NFT_ABI, signer);
+  const nftRunner = signer.provider || signer;
+  const nft = new ethers.Contract(NFT_ADDRESS, NFT_ABI, nftRunner);
   return { cdp, nft };
 }
 
@@ -71,24 +76,29 @@ export async function depositAndMint(signer, ethAmount) {
 
 export async function repayDebt(signer) {
   const { cdp } = getContracts(signer);
-  const tx = await cdp.repay();
+  const pos = await cdp.positions(await signer.getAddress());
+  if (pos.debt === 0n) {
+    throw new Error("No debt to repay.");
+  }
+
+  const tx = await cdp.repay({ value: pos.debt });
   return tx.wait();
 }
 
 // Credit tier helpers
+// Score range 0-100 — mirrors CDP.sol getCollateralRatio() breakpoints
 export function getTier(score) {
-  if (score >= 800) return { label: "Diamond", level: 4 };
-  if (score >= 600) return { label: "Gold",    level: 3 };
-  if (score >= 400) return { label: "Silver",  level: 2 };
-  if (score >= 200) return { label: "Bronze",  level: 1 };
+  if (score >  85) return { label: "Diamond", level: 4 };
+  if (score >  60) return { label: "Gold",    level: 3 };
+  if (score >  30) return { label: "Silver",  level: 2 };
+  if (score >   0) return { label: "Bronze",  level: 1 };
   return { label: "Unranked", level: 0 };
 }
 
 export function getCollateralRatioFromTier(score) {
-  if (score >= 800) return 100;
-  if (score >= 600) return 110;
-  if (score >= 400) return 120;
-  if (score >= 200) return 130;
+  if (score >  85) return 80;
+  if (score >  60) return 100;
+  if (score >  30) return 120;
   return 150;
 }
 

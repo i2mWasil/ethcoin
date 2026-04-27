@@ -1,0 +1,1 @@
+"""EthCoin scorer service package."""

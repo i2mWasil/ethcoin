@@ -7,6 +7,7 @@ import CreditProfilePage from "./components/CreditProfilePage";
 import HistoryPage from "./components/HistoryPage";
 import { connectWallet, getEthBalance, getEthPrice } from "./utils/connect";
 import { fetchPosition, fetchCreditScore } from "./utils/contracts";
+import { requestScoreUpdate } from "./utils/scorer";
 
 export default function App() {
   const [signer, setSigner]       = useState(null);
@@ -52,7 +53,7 @@ export default function App() {
         }
       });
     }
-  }, []);
+  }, [handleConnect]);
 
   // Fetch on-chain data when connected
   useEffect(() => {
@@ -75,12 +76,31 @@ export default function App() {
   }, [signer, address, refreshKey]);
 
   const refresh = () => setRefreshKey(k => k + 1);
+  const syncCreditScore = useCallback(async (walletAddress) => {
+    const target = walletAddress || address;
+    if (!target) {
+      throw new Error("Wallet address is unavailable.");
+    }
+
+    const result = await requestScoreUpdate(target);
+    setRefreshKey((key) => key + 1);
+    return result;
+  }, [address]);
 
   if (!signer) {
     return <LandingPage onConnect={handleConnect} loading={loading} />;
   }
 
-  const pageProps = { signer, address, ethBalance, ethPrice, position, creditScore, refresh };
+  const pageProps = {
+    signer,
+    address,
+    ethBalance,
+    ethPrice,
+    position,
+    creditScore,
+    refresh,
+    syncCreditScore,
+  };
 
   return (
     <Layout page={page} setPage={setPage} address={address} creditScore={creditScore} onConnect={handleConnect}>

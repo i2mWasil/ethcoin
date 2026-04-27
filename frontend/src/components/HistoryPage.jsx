@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { getTransactionHistory } from "../utils/connect";
-import { repayDebt, decodeTxType } from "../utils/contracts";
+import { repayDebt } from "../utils/contracts";
 
 function formatDate(ts) {
   if (!ts) return "—";
@@ -14,22 +14,39 @@ function shortHash(hash) {
   return `${hash.slice(0, 8)}...${hash.slice(-4)}`;
 }
 
-export default function HistoryPage({ signer, address, position, creditScore, ethPrice, refresh }) {
-  const [txs, setTxs] = useState([]);
-  const [loadingTxs, setLoadingTxs] = useState(true);
+function getDeterministicScoreImpact(tx) {
+  const seed = tx.hash || `${tx.timeStamp || ""}${tx.value || ""}`;
+  let total = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    total += seed.charCodeAt(index);
+  }
+  return 5 + (total % 20);
+}
+
+export default function HistoryPage({ signer, address, position, creditScore, ethPrice, refresh, syncCreditScore }) {
+  const [historyState, setHistoryState] = useState({ address: "", txs: [] });
   const [repaying, setRepaying] = useState(false);
   const [repayHash, setRepayHash] = useState(null);
   const [repayError, setRepayError] = useState(null);
+  const [scoreSyncing, setScoreSyncing] = useState(false);
+  const [scoreSyncError, setScoreSyncError] = useState(null);
+  const [scoreSyncTxHash, setScoreSyncTxHash] = useState(null);
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 5;
+  const txs = historyState.address === address ? historyState.txs : [];
+  const loadingTxs = Boolean(address) && historyState.address !== address;
 
   useEffect(() => {
     if (!address) return;
-    setLoadingTxs(true);
+    let cancelled = false;
     getTransactionHistory(address).then(data => {
-      setTxs(data);
-      setLoadingTxs(false);
+      if (!cancelled) {
+        setHistoryState({ address, txs: data });
+      }
     });
+    return () => {
+      cancelled = true;
+    };
   }, [address]);
 
   const totalRepaid = txs
@@ -48,7 +65,21 @@ export default function HistoryPage({ signer, address, position, creditScore, et
     try {
       const receipt = await repayDebt(signer);
       setRepayHash(receipt.hash || receipt.transactionHash);
+      setScoreSyncError(null);
+      setScoreSyncTxHash(null);
       refresh();
+
+      if (syncCreditScore && address) {
+        setScoreSyncing(true);
+        try {
+          const result = await syncCreditScore(address);
+          setScoreSyncTxHash(result.tx_hash || null);
+        } catch (syncErr) {
+          setScoreSyncError(syncErr?.message || "Repay succeeded, but score sync failed.");
+        } finally {
+          setScoreSyncing(false);
+        }
+      }
     } catch (err) {
       setRepayError(err.reason || err.message || "Repay failed.");
     } finally {
@@ -180,6 +211,29 @@ export default function HistoryPage({ signer, address, position, creditScore, et
               </a>
             </div>
           )}
+          {scoreSyncing && (
+            <div style={{ marginTop: "10px", fontSize: "12px", color: "#60a5fa", fontFamily: "var(--font-mono)" }}>
+              Syncing your refreshed credit score on-chain...
+            </div>
+          )}
+          {scoreSyncError && (
+            <div style={{ marginTop: "10px", fontSize: "12px", color: "#f59e0b", fontFamily: "var(--font-mono)" }}>
+              {scoreSyncError}
+            </div>
+          )}
+          {scoreSyncTxHash && (
+            <div style={{ marginTop: "10px", fontSize: "12px", color: "#10b981", fontFamily: "var(--font-mono)" }}>
+              Score updated:{" "}
+              <a
+                href={`https://sepolia.etherscan.io/tx/${scoreSyncTxHash}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "#10b981" }}
+              >
+                {shortHash(scoreSyncTxHash)}
+              </a>
+            </div>
+          )}
         </div>
       )}
 
@@ -242,7 +296,7 @@ export default function HistoryPage({ signer, address, position, creditScore, et
             const isError  = tx.isError === "1";
             const ethVal = parseFloat(ethers.formatEther(tx.value || "0")).toFixed(4);
             const usdVal = (parseFloat(ethVal) * ethPrice).toFixed(2);
-            const scoreImpact = isRepaid ? +(Math.random() * 20 + 5).toFixed(0) : isError ? -5 : 0;
+            const scoreImpact = isRepaid ? getDeterministicScoreImpact(tx) : isError ? -5 : 0;
 
             return (
               <div key={tx.hash || i} style={{
