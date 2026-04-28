@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import CDP_ABI from "../abi/CDP.json";
 import NFT_ABI from "../abi/CreditScoreNFT.json";
+import { getTransactionHistory } from "./connect";
 
 const CDP_ADDRESS = import.meta.env.VITE_CDP_ADDRESS;
 const NFT_ADDRESS = import.meta.env.VITE_NFT_ADDRESS;
@@ -85,6 +86,205 @@ export async function repayDebt(signer) {
   return tx.wait();
 }
 
+export async function fetchDebtActivity(signer, address) {
+  if (!signer || !address) {
+    return [];
+  }
+
+  try {
+    const { cdp } = getContracts(signer);
+    const provider = signer.provider;
+    const historyTxs = await getTransactionHistory(address);
+
+    if (historyTxs.length === 0) {
+      return fetchDebtActivityFromLogs({ address, cdp, provider });
+    }
+
+    const normalizedActivity = await Promise.all(
+      historyTxs.map(async (tx) => {
+        const receiptEvent = await getDebtActivityEvent({
+          address,
+          contractInterface: cdp.interface,
+          provider,
+          txHash: tx.hash,
+        });
+
+        return normalizeDebtActivity(tx, receiptEvent);
+      })
+    );
+
+    return normalizedActivity.sort((a, b) => {
+      if (b.timeStamp !== a.timeStamp) {
+        return b.timeStamp - a.timeStamp;
+      }
+      return b.blockNumber - a.blockNumber;
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function fetchDebtActivityFromLogs({ address, cdp, provider }) {
+  if (!provider) {
+    return [];
+  }
+
+  try {
+    const currentBlock = await provider.getBlockNumber();
+    const [borrowEvents, repayEvents] = await Promise.all([
+      cdp.queryFilter(cdp.filters.LoanTaken(address), 0, currentBlock),
+      cdp.queryFilter(cdp.filters.LoanRepaid(address), 0, currentBlock),
+    ]);
+
+    const blockCache = new Map();
+    const normalizedBorrows = await Promise.all(
+      borrowEvents.map((event) =>
+        normalizeLogActivity({
+          event,
+          kind: "borrow",
+          getBlockTimestamp: () => getBlockTimestamp(provider, blockCache, event.blockNumber),
+        })
+      )
+    );
+    const normalizedRepayments = await Promise.all(
+      repayEvents.map((event) =>
+        normalizeLogActivity({
+          event,
+          kind: "repay",
+          getBlockTimestamp: () => getBlockTimestamp(provider, blockCache, event.blockNumber),
+        })
+      )
+    );
+
+    return [...normalizedBorrows, ...normalizedRepayments].sort((a, b) => {
+      if (b.timeStamp !== a.timeStamp) {
+        return b.timeStamp - a.timeStamp;
+      }
+      return b.blockNumber - a.blockNumber;
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function getDebtActivityEvent({ address, contractInterface, provider, txHash }) {
+  if (!provider || !txHash) {
+    return null;
+  }
+
+  try {
+    const receipt = await provider.getTransactionReceipt(txHash);
+    if (!receipt) {
+      return null;
+    }
+
+    const lowerAddress = address.toLowerCase();
+    for (const log of receipt.logs) {
+      try {
+        const parsed = contractInterface.parseLog(log);
+        if (!parsed || (parsed.name !== "LoanTaken" && parsed.name !== "LoanRepaid")) {
+          continue;
+        }
+
+        if ((parsed.args?.user || "").toLowerCase() === lowerAddress) {
+          return parsed;
+        }
+      } catch {
+        // Ignore unrelated logs from the same receipt.
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getBlockTimestamp(provider, cache, blockNumber) {
+  if (!cache.has(blockNumber)) {
+    cache.set(
+      blockNumber,
+      provider.getBlock(blockNumber).then((block) => Number(block?.timestamp || 0))
+    );
+  }
+
+  return cache.get(blockNumber);
+}
+
+async function normalizeLogActivity({ event, kind, getBlockTimestamp }) {
+  const timeStamp = await getBlockTimestamp();
+  const idSuffix = kind === "borrow" ? "borrow" : "repay";
+
+  if (kind === "borrow") {
+    return {
+      id: `${event.transactionHash}-${event.index ?? event.logIndex ?? 0}-${idSuffix}`,
+      hash: event.transactionHash,
+      blockNumber: Number(event.blockNumber || 0),
+      timeStamp,
+      type: "borrow",
+      status: "confirmed",
+      collateral: parseFloat(ethers.formatEther(event.args?.collateral ?? 0n)),
+      amount: parseFloat(ethers.formatUnits(event.args?.debt ?? 0n, 18)),
+    };
+  }
+
+  return {
+    id: `${event.transactionHash}-${event.index ?? event.logIndex ?? 0}-${idSuffix}`,
+    hash: event.transactionHash,
+    blockNumber: Number(event.blockNumber || 0),
+    timeStamp,
+    type: "repay",
+    status: "confirmed",
+    collateral: 0,
+    amount: parseFloat(ethers.formatUnits(event.args?.amount ?? 0n, 18)),
+  };
+}
+
+function normalizeDebtActivity(tx, receiptEvent) {
+  const fallbackType = decodeTxType(tx);
+  const blockNumber = Number(tx.blockNumber || 0);
+  const timeStamp = Number(tx.timeStamp || 0);
+  const txValue = parseFloat(ethers.formatEther(tx.value || "0"));
+  const status = tx.isError === "1" ? "failed" : "confirmed";
+
+  if (receiptEvent?.name === "LoanTaken") {
+    return {
+      id: `${tx.hash || `${blockNumber}-${timeStamp}`}-borrow`,
+      hash: tx.hash,
+      blockNumber,
+      timeStamp,
+      type: "borrow",
+      status,
+      collateral: parseFloat(ethers.formatEther(receiptEvent.args?.collateral ?? 0n)),
+      amount: parseFloat(ethers.formatUnits(receiptEvent.args?.debt ?? 0n, 18)),
+    };
+  }
+
+  if (receiptEvent?.name === "LoanRepaid") {
+    return {
+      id: `${tx.hash || `${blockNumber}-${timeStamp}`}-repay`,
+      hash: tx.hash,
+      blockNumber,
+      timeStamp,
+      type: "repay",
+      status,
+      collateral: 0,
+      amount: parseFloat(ethers.formatUnits(receiptEvent.args?.amount ?? 0n, 18)),
+    };
+  }
+
+  return {
+    id: `${tx.hash || `${blockNumber}-${timeStamp}`}-fallback`,
+    hash: tx.hash,
+    blockNumber,
+    timeStamp,
+    type: fallbackType === "Repay" ? "repay" : fallbackType === "Deposit & Mint" ? "borrow" : "transaction",
+    status,
+    collateral: fallbackType === "Deposit & Mint" ? txValue : 0,
+    amount: fallbackType === "Repay" ? txValue : null,
+  };
+}
+
 // Credit tier helpers
 // Score range 0-100 — mirrors CDP.sol getCollateralRatio() breakpoints
 export function getTier(score) {
@@ -113,10 +313,10 @@ export function decodeTxType(tx) {
   const input = tx.input || tx.data || "";
   if (input.startsWith("0x")) {
     const sig = input.slice(0, 10);
-    // depositAndMint() selector
-    if (sig === "0x85f2aef2" || tx.value !== "0") return "Deposit & Mint";
     // repay() selector
     if (sig === "0x371fd8e6") return "Repay";
+    // depositAndMint() selector
+    if (sig === "0x85f2aef2" || tx.value !== "0") return "Deposit & Mint";
   }
   return "Transaction";
 }

@@ -44,7 +44,7 @@ export async function getEthBalance(address) {
   try {
     const apiKey = import.meta.env.VITE_ETHERSCAN_API_KEY;
     const res = await fetch(
-      `https://api-sepolia.etherscan.io/api?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`
+      `https://api.etherscan.io/v2/api?chainid=11155111&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`
     );
     const data = await res.json();
     if (data.status === "1") {
@@ -61,15 +61,11 @@ export async function getTransactionHistory(address) {
     const apiKey = import.meta.env.VITE_ETHERSCAN_API_KEY;
     const cdpAddress = import.meta.env.VITE_CDP_ADDRESS;
     const res = await fetch(
-      `https://api-sepolia.etherscan.io/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`
+      `https://api.etherscan.io/v2/api?chainid=11155111&module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`
     );
     const data = await res.json();
     if (data.status === "1") {
-      // Filter txs related to CDP contract if available
-      const txs = data.result || [];
-      return cdpAddress
-        ? txs.filter(tx => tx.to?.toLowerCase() === cdpAddress.toLowerCase())
-        : txs.slice(0, 20);
+      return data.result;
     }
     return [];
   } catch {
@@ -81,7 +77,7 @@ export async function getEthPrice() {
   try {
     const apiKey = import.meta.env.VITE_ETHERSCAN_API_KEY;
     const res = await fetch(
-      `https://api-sepolia.etherscan.io/api?module=stats&action=ethprice&apikey=${apiKey}`
+      `https://api.etherscan.io/v2/api?chainid=11155111&module=stats&action=ethprice&apikey=${apiKey}`
     );
     const data = await res.json();
     if (data.status === "1") {

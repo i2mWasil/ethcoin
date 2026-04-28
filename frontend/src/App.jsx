@@ -98,6 +98,7 @@ export default function App() {
     ethPrice,
     position,
     creditScore,
+    refreshKey,
     refresh,
     syncCreditScore,
   };
