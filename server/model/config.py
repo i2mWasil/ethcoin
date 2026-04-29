@@ -10,7 +10,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 SERVER_DIR = ROOT_DIR / "server"
 MODEL_DIR = SERVER_DIR / "model"
 
-load_env_file(SERVER_DIR / ".env")
+load_env_file(ROOT_DIR/ ".env")
 
 RPC_URL = os.getenv("RPC_URL", "")
 SCORER_PRIVATE_KEY = os.getenv("SCORER_PRIVATE_KEY", "")
