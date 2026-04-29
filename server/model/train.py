@@ -17,11 +17,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 log = logging.getLogger(__name__)
 
 try:
-    import xgboost as xgb
+    from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.pipeline import Pipeline
+    from sklearn.preprocessing import StandardScaler
 except ImportError as exc:  # pragma: no cover - surfaced via CLI
     raise SystemExit(
-        "xgboost is not installed. Run `pip install -r server/requirements.txt` first."
+        "scikit-learn is not installed. Run `pip install -r server/requirements.txt` first."
     ) from exc
+
+
+DEFAULT_NEIGHBORS = 7
 
 
 def _as_float(value: str | float | int | None, default: float = 0.0) -> float:
@@ -83,12 +88,25 @@ def generate_synthetic_rows(count: int, seed: int) -> list[tuple[list[float], in
     return rows
 
 
+def _build_knn_model(neighbors: int) -> Pipeline:
+    return Pipeline(
+        steps=[
+            ("scale", StandardScaler()),
+            ("knn", KNeighborsRegressor(n_neighbors=neighbors, weights="distance")),
+        ]
+    )
+
+
 def train_model(
     dataset_path: Path = DATASET_FILE,
     output_path: Path = MODEL_PATH,
     synthetic_samples: int = 256,
     seed: int = 42,
+    neighbors: int = DEFAULT_NEIGHBORS,
 ) -> Path:
+    if neighbors <= 0:
+        raise ValueError("neighbors must be a positive integer.")
+
     rows = load_dataset_rows(dataset_path)
     rows.extend(generate_synthetic_rows(synthetic_samples, seed))
 
@@ -97,41 +115,47 @@ def train_model(
 
     features = [row[0] for row in rows]
     labels = [row[1] for row in rows]
+    effective_neighbors = min(neighbors, len(rows))
+    model = _build_knn_model(effective_neighbors)
+    model.fit(features, labels)
 
-    training_matrix = xgb.DMatrix(features, label=labels, feature_names=FEATURE_COLUMNS)
-    model = xgb.train(
-        {
-            "objective": "reg:squarederror",
-            "max_depth": 4,
-            "eta": 0.08,
-            "subsample": 0.9,
-            "colsample_bytree": 0.9,
-            "seed": seed,
-        },
-        training_matrix,
-        num_boost_round=96,
-    )
+    artifact = {
+        "model": model,
+        "feature_columns": FEATURE_COLUMNS,
+        "model_type": "knn_regressor",
+        "neighbors": effective_neighbors,
+        "seed": seed,
+        "synthetic_samples": synthetic_samples,
+        "training_rows": len(rows),
+    }
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("wb") as handle:
-        pickle.dump(model, handle)
+        pickle.dump(artifact, handle)
 
-    log.info("Saved XGBoost model artifact to %s", output_path)
+    log.info(
+        "Saved KNN model artifact to %s (neighbors=%d, training_rows=%d)",
+        output_path,
+        effective_neighbors,
+        len(rows),
+    )
     return output_path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train the EthCoin XGBoost scorer.")
+    parser = argparse.ArgumentParser(description="Train the EthCoin KNN scorer.")
     parser.add_argument("--dataset", type=Path, default=DATASET_FILE)
     parser.add_argument("--output", type=Path, default=MODEL_PATH)
     parser.add_argument("--synthetic-samples", type=int, default=256)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--neighbors", type=int, default=DEFAULT_NEIGHBORS)
     args = parser.parse_args()
     train_model(
         dataset_path=args.dataset,
         output_path=args.output,
         synthetic_samples=args.synthetic_samples,
         seed=args.seed,
+        neighbors=args.neighbors,
     )
 
 

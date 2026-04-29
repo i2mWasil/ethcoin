@@ -3,3 +3,6 @@ __pycache__/
 .venv
 /dataset/wallets.txt
 /dataset/wallet_data.csv
+/economy/runs/
+/economy/wallet_manifest.json
+/economy/*.secrets.json

@@ -12,10 +12,21 @@ log = logging.getLogger(__name__)
 
 _MODEL = None
 _MODEL_LOAD_FAILED = False
+_MODEL_FEATURE_COLUMNS = FEATURE_COLUMNS
+
+
+def _unpack_artifact(artifact):
+    if isinstance(artifact, dict) and artifact.get("model") is not None:
+        model = artifact["model"]
+        feature_columns = list(artifact.get("feature_columns") or FEATURE_COLUMNS)
+        metadata = {key: value for key, value in artifact.items() if key != "model"}
+        return model, feature_columns, metadata
+
+    return artifact, FEATURE_COLUMNS, {}
 
 
 def _load_model():
-    global _MODEL, _MODEL_LOAD_FAILED
+    global _MODEL, _MODEL_FEATURE_COLUMNS, _MODEL_LOAD_FAILED
 
     if _MODEL is not None or _MODEL_LOAD_FAILED:
         return _MODEL
@@ -27,8 +38,21 @@ def _load_model():
 
     try:
         with MODEL_PATH.open("rb") as handle:
-            _MODEL = pickle.load(handle)
-        log.info("Loaded model artifact from %s", MODEL_PATH)
+            artifact = pickle.load(handle)
+        model, feature_columns, metadata = _unpack_artifact(artifact)
+        if model.__class__.__name__ == "Booster":
+            log.warning(
+                "Legacy XGBoost artifact detected at %s. Retrain with `python -m server.model.train` "
+                "to produce the new KNN model. Falling back to rule-based scoring.",
+                MODEL_PATH,
+            )
+            _MODEL_LOAD_FAILED = True
+            return None
+
+        _MODEL = model
+        _MODEL_FEATURE_COLUMNS = feature_columns
+        model_type = metadata.get("model_type") or _MODEL.__class__.__name__
+        log.info("Loaded %s artifact from %s", model_type, MODEL_PATH)
     except Exception as exc:
         log.warning("Failed to load model artifact %s: %s", MODEL_PATH, exc)
         _MODEL_LOAD_FAILED = True
@@ -37,12 +61,6 @@ def _load_model():
 
 
 def _predict_model(model, row: list[list[float]]) -> float:
-    if model.__class__.__name__ == "Booster":
-        import xgboost as xgb
-
-        matrix = xgb.DMatrix(row, feature_names=FEATURE_COLUMNS)
-        return float(model.predict(matrix)[0])
-
     return float(model.predict(row)[0])
 
 
@@ -50,7 +68,7 @@ def generate_score(features: dict) -> int:
     model = _load_model()
     if model is not None:
         try:
-            row = [[features.get(column, 0) for column in FEATURE_COLUMNS]]
+            row = [[features.get(column, 0) for column in _MODEL_FEATURE_COLUMNS]]
             return clamp_score(_predict_model(model, row))
         except Exception as exc:
             log.warning("Model inference failed (%s). Falling back to rule-based scoring.", exc)

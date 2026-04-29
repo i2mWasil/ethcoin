@@ -52,10 +52,29 @@ export default function CreditProfilePage({ address, creditScore, syncCreditScor
   const borrowApr = creditScore > 85 ? "2.0%" : creditScore > 60 ? "2.2%" : creditScore > 30 ? "2.5%" : "3.0%";
 
   // Compute factors from credit score (approximate breakdown)
+  const scoreValue = Number(creditScore) || 0;
   const walletAgePts = Math.round(creditScore * 0.25);
   const repayPts = Math.round(creditScore * 0.4);
   const defiPts = Math.round(creditScore * 0.2);
   const govPts = tier.level >= 3 ? Math.round(creditScore * 0.15) : 0;
+
+  const scoreBand = scoreValue < 30 ? "low" : scoreValue < 60 ? "mid" : "high";
+  const walletAgeValue = scoreBand === "low"
+    ? "Young wallet"
+    : scoreBand === "mid"
+    ? "Established wallet"
+    : "Veteran wallet";
+  const repayValue = scoreBand === "low"
+    ? "Limited repayment history"
+    : scoreBand === "mid"
+    ? "Some successful repayments"
+    : "Consistent repayments";
+  const defiValue = scoreBand === "low"
+    ? "Low activity"
+    : scoreBand === "mid"
+    ? "Moderate activity"
+    : "High activity";
+
 
   const tierColors = {
     Bronze:  { bg: "linear-gradient(135deg, #92400e, #b45309)", text: "#f59e0b" },
@@ -328,7 +347,7 @@ export default function CreditProfilePage({ address, creditScore, syncCreditScor
             <ScoreFactor
               icon="🕐"
               label="Wallet Age"
-              value={creditScore > 0 ? "Active for 3.4 Years" : "No history yet"}
+              value={walletAgeValue}
               points={walletAgePts}
               color="linear-gradient(90deg, #10b981, #059669)"
               pct={75}
@@ -336,7 +355,7 @@ export default function CreditProfilePage({ address, creditScore, syncCreditScor
             <ScoreFactor
               icon="✓"
               label="Repayment History"
-              value={creditScore > 0 ? "0 Liquidations / 14 Loans" : "No loans yet"}
+              value={repayValue}
               points={repayPts}
               color="linear-gradient(90deg, #10b981, #0d9488)"
               pct={100}
@@ -344,7 +363,7 @@ export default function CreditProfilePage({ address, creditScore, syncCreditScor
             <ScoreFactor
               icon="↔"
               label="DeFi Activity"
-              value={creditScore > 0 ? "$45.2K Total Volume" : "No activity yet"}
+              value={defiValue}
               points={defiPts}
               color="linear-gradient(90deg, #f59e0b, #d97706)"
               pct={45}

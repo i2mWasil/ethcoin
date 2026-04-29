@@ -15,7 +15,7 @@ This service computes a credit score off-chain, submits `updateScore(user, score
 Create a local env file from [`server/.env.example`](/Users/ImWasil/Documents/GitHub/ethcoin/server/.env.example) or export the variables directly:
 
 ```bash
-cp server/.env.example server/.env.local
+cp server/.env.example server/.env
 ```
 
 Required variables:
@@ -42,7 +42,7 @@ source .venv/bin/activate
 pip install -r server/requirements.txt
 ```
 
-## Train the XGBoost artifact
+## Train the KNN artifact
 
 ```bash
 python -m server.model.train --output server/model/weights.pkl
@@ -52,6 +52,8 @@ Notes:
 
 - The trainer reads `server/dataset/wallet_data.csv` when present.
 - If the dataset is sparse, it augments training with synthetic examples labeled by the deterministic fallback scorer so a usable `weights.pkl` can still be produced.
+- The saved artifact is a pickled scikit-learn pipeline with `StandardScaler` + `KNeighborsRegressor`.
+- You can tune neighborhood size with `--neighbors 7`.
 
 ## Run the API server
 
