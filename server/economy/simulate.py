@@ -14,7 +14,7 @@ from typing import Any
 from eth_account import Account
 from web3 import Web3
 
-from server.economy.chain import (
+from economy.chain import (
     ProtocolContracts,
     build_fee_params,
     build_web3,
@@ -26,7 +26,7 @@ from server.economy.chain import (
     send_contract_call,
     send_native_transfer,
 )
-from server.economy.config import (
+from economy.config import (
     DEFAULT_WALLETS_FILE,
     RUNS_DIR,
     default_cdp_address,

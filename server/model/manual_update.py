@@ -19,7 +19,7 @@ def main():
     if not (0 <= args.score <= 100):
         parser.error("Score must be in range [0, 100]")
 
-    from server.model.chain import read_score, submit_score
+    from model.chain import read_score, submit_score
 
     log.info("Submitting score %d for wallet %s ...", args.score, args.wallet)
     tx_hash = submit_score(args.wallet, args.score)

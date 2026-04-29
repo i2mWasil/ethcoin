@@ -7,10 +7,10 @@ import pickle
 import random
 from pathlib import Path
 
-from server.dataset.config import DATASET_FILE
-from server.dataset.features import FEATURE_COLUMNS, WEI_PER_ETH
-from server.dataset.scoring import generate_score as generate_rule_score
-from server.model.config import MODEL_PATH
+from dataset.config import DATASET_FILE
+from dataset.features import FEATURE_COLUMNS, WEI_PER_ETH
+from dataset.scoring import generate_score as generate_rule_score
+from model.config import MODEL_PATH
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")

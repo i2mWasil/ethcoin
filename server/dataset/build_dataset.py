@@ -5,10 +5,10 @@ import csv
 import logging
 from pathlib import Path
 
-from server.dataset.config import DATASET_FILE, WALLETS_FILE
-from server.dataset.features import FEATURE_COLUMNS, extract_features
-from server.dataset.fetch import get_transactions
-from server.dataset.scoring import generate_score
+from dataset.config import DATASET_FILE, WALLETS_FILE
+from dataset.features import FEATURE_COLUMNS, extract_features
+from dataset.fetch import get_transactions
+from dataset.scoring import generate_score
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")

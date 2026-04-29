@@ -7,7 +7,7 @@ import time
 from web3 import Web3
 from web3.middleware import ExtraDataToPOAMiddleware
 
-from server.model.config import CHAIN_ID, NFT_ADDRESS, RPC_URL, SCORER_PRIVATE_KEY
+from model.config import CHAIN_ID, NFT_ADDRESS, RPC_URL, SCORER_PRIVATE_KEY
 
 
 log = logging.getLogger(__name__)

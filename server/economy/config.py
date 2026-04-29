@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from server.env import load_env_file
+from env import load_env_file
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]

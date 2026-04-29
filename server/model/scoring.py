@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 import pickle
 
-from server.dataset.features import FEATURE_COLUMNS
-from server.dataset.scoring import clamp_score, generate_score as generate_rule_score
-from server.model.config import MODEL_PATH
+from dataset.features import FEATURE_COLUMNS
+from dataset.scoring import clamp_score, generate_score as generate_rule_score
+from model.config import MODEL_PATH
 
 
 log = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ def _load_model():
         model, feature_columns, metadata = _unpack_artifact(artifact)
         if model.__class__.__name__ == "Booster":
             log.warning(
-                "Legacy XGBoost artifact detected at %s. Retrain with `python -m server.model.train` "
+                "Legacy XGBoost artifact detected at %s. Retrain with `python -m model.train` "
                 "to produce the new KNN model. Falling back to rule-based scoring.",
                 MODEL_PATH,
             )

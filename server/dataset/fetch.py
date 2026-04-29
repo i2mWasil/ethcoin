@@ -5,7 +5,7 @@ import time
 
 import requests
 
-from server.dataset.config import CHAIN_ID, ETHERSCAN_API_KEY, ETHERSCAN_BASE_URL
+from dataset.config import CHAIN_ID, ETHERSCAN_API_KEY, ETHERSCAN_BASE_URL
 
 
 log = logging.getLogger(__name__)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from server.env import load_env_file
+from env import load_env_file
 
 
 DATASET_DIR = Path(__file__).resolve().parent

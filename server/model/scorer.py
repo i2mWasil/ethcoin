@@ -3,11 +3,11 @@ from __future__ import annotations
 import argparse
 import logging
 
-from server.model.config import LOG_LEVEL
-from server.model.chain import read_score, submit_score
-from server.model.scoring import generate_score
-from server.dataset.features import extract_features
-from server.dataset.fetch import get_transactions
+from model.config import LOG_LEVEL
+from model.chain import read_score, submit_score
+from model.scoring import generate_score
+from dataset.features import extract_features
+from dataset.fetch import get_transactions
 
 logging.basicConfig(
     level=LOG_LEVEL,
