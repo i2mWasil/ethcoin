@@ -8,7 +8,7 @@ from env import load_env_file
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SERVER_DIR = ROOT_DIR / "server"
-MODEL_DIR = SERVER_DIR / "model"
+MODEL_DIR = ROOT_DIR / "model"
 
 load_env_file(ROOT_DIR/ ".env")
 
