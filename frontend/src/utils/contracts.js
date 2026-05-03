@@ -149,7 +149,7 @@ export async function fetchDebtActivity(signer, address) {
           txHash: tx.hash,
         });
 
-        return normalizeDebtActivity(tx, receiptEvent);
+        return normalizeDebtActivity(tx, receiptEvent, provider);
       })
     );
 
@@ -183,6 +183,7 @@ async function fetchDebtActivityFromLogs({ address, cdp, provider }) {
           event,
           kind: "borrow",
           getBlockTimestamp: () => getBlockTimestamp(provider, blockCache, event.blockNumber),
+          provider,
         })
       )
     );
@@ -192,6 +193,7 @@ async function fetchDebtActivityFromLogs({ address, cdp, provider }) {
           event,
           kind: "repay",
           getBlockTimestamp: () => getBlockTimestamp(provider, blockCache, event.blockNumber),
+          provider,
         })
       )
     );
@@ -251,50 +253,71 @@ function getBlockTimestamp(provider, cache, blockNumber) {
   return cache.get(blockNumber);
 }
 
-async function normalizeLogActivity({ event, kind, getBlockTimestamp }) {
+async function normalizeLogActivity({ event, kind, getBlockTimestamp, provider }) {
   const timeStamp = await getBlockTimestamp();
   const idSuffix = kind === "borrow" ? "borrow" : "repay";
 
+  // Fetch receipt for gas data
+  let gasCostEth = null;
+  try {
+    if (provider && event.transactionHash) {
+      const receipt = await provider.getTransactionReceipt(event.transactionHash);
+      if (receipt) {
+        gasCostEth = parseFloat(ethers.formatEther(receipt.gasUsed * receipt.gasPrice));
+      }
+    }
+  } catch { /* ignore */ }
+
+  const base = {
+    id: `${event.transactionHash}-${event.index ?? event.logIndex ?? 0}-${idSuffix}`,
+    hash: event.transactionHash,
+    blockNumber: Number(event.blockNumber || 0),
+    timeStamp,
+    status: "confirmed",
+    gasCostEth,
+    confirmations: null,
+  };
+
   if (kind === "borrow") {
     return {
-      id: `${event.transactionHash}-${event.index ?? event.logIndex ?? 0}-${idSuffix}`,
-      hash: event.transactionHash,
-      blockNumber: Number(event.blockNumber || 0),
-      timeStamp,
+      ...base,
       type: "borrow",
-      status: "confirmed",
       collateral: parseFloat(ethers.formatEther(event.args?.collateral ?? 0n)),
       amount: parseFloat(ethers.formatUnits(event.args?.debt ?? 0n, 18)),
     };
   }
 
   return {
-    id: `${event.transactionHash}-${event.index ?? event.logIndex ?? 0}-${idSuffix}`,
-    hash: event.transactionHash,
-    blockNumber: Number(event.blockNumber || 0),
-    timeStamp,
+    ...base,
     type: "repay",
-    status: "confirmed",
     collateral: 0,
     amount: parseFloat(ethers.formatUnits(event.args?.amount ?? 0n, 18)),
   };
 }
 
-function normalizeDebtActivity(tx, receiptEvent) {
+function normalizeDebtActivity(tx, receiptEvent, provider) {
   const fallbackType = decodeTxType(tx);
   const blockNumber = Number(tx.blockNumber || 0);
   const timeStamp = Number(tx.timeStamp || 0);
   const txValue = parseFloat(ethers.formatEther(tx.value || "0"));
   const status = tx.isError === "1" ? "failed" : "confirmed";
 
+  // Gas cost from Etherscan tx data (gasUsed * gasPrice in ETH)
+  const gasUsed = BigInt(tx.gasUsed || 0);
+  const gasPrice = BigInt(tx.gasPrice || 0);
+  const gasCostEth = gasUsed > 0n && gasPrice > 0n
+    ? parseFloat(ethers.formatEther(gasUsed * gasPrice))
+    : null;
+  const confirmations = tx.confirmations ? Number(tx.confirmations) : null;
+
+  const base = { blockNumber, timeStamp, status, gasCostEth, confirmations };
+
   if (receiptEvent?.name === "LoanTaken") {
     return {
+      ...base,
       id: `${tx.hash || `${blockNumber}-${timeStamp}`}-borrow`,
       hash: tx.hash,
-      blockNumber,
-      timeStamp,
       type: "borrow",
-      status,
       collateral: parseFloat(ethers.formatEther(receiptEvent.args?.collateral ?? 0n)),
       amount: parseFloat(ethers.formatUnits(receiptEvent.args?.debt ?? 0n, 18)),
     };
@@ -302,24 +325,20 @@ function normalizeDebtActivity(tx, receiptEvent) {
 
   if (receiptEvent?.name === "LoanRepaid") {
     return {
+      ...base,
       id: `${tx.hash || `${blockNumber}-${timeStamp}`}-repay`,
       hash: tx.hash,
-      blockNumber,
-      timeStamp,
       type: "repay",
-      status,
       collateral: 0,
       amount: parseFloat(ethers.formatUnits(receiptEvent.args?.amount ?? 0n, 18)),
     };
   }
 
   return {
+    ...base,
     id: `${tx.hash || `${blockNumber}-${timeStamp}`}-fallback`,
     hash: tx.hash,
-    blockNumber,
-    timeStamp,
     type: fallbackType === "Repay" ? "repay" : fallbackType === "Deposit & Mint" ? "borrow" : "transaction",
-    status,
     collateral: fallbackType === "Deposit & Mint" ? txValue : 0,
     amount: fallbackType === "Repay" ? txValue : null,
   };

@@ -22,6 +22,16 @@ function formatAmount(value, digits = 2) {
   });
 }
 
+function formatTimeAgo(unixTs) {
+  if (!unixTs) return "—";
+  const seconds = Math.floor(Date.now() / 1000) - Number(unixTs);
+  if (seconds < 60)    return `${seconds}s ago`;
+  if (seconds < 3600)  return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 2592000) return `${Math.floor(seconds / 86400)}d ago`;
+  return `${Math.floor(seconds / 2592000)}mo ago`;
+}
+
 function statusStyles(kind) {
   if (kind === "healthy") {
     return {
@@ -441,11 +451,11 @@ export default function HistoryPage({
 
         <div style={{
           display: "grid",
-          gridTemplateColumns: "1.4fr 1fr 1.4fr 1.1fr 1fr",
+          gridTemplateColumns: "1.3fr 0.9fr 1.3fr 1fr 0.9fr 0.9fr 0.7fr",
           padding: "10px 16px",
           borderBottom: "1px solid var(--bg-border)",
         }}>
-          {["Date", "Type", "Amount", "Collateral", "Transaction"].map((h) => (
+          {["Date", "Type", "Amount", "Collateral", "Gas Cost", "Exec Time", "Tx"].map((h) => (
             <div key={h} style={{
               fontSize: "10px", color: "var(--text-muted)",
               textTransform: "uppercase", letterSpacing: "1px",
@@ -518,7 +528,7 @@ export default function HistoryPage({
             return (
               <div key={tx.id} style={{
                 display: "grid",
-                gridTemplateColumns: "1.4fr 1fr 1.4fr 1.1fr 1fr",
+                gridTemplateColumns: "1.3fr 0.9fr 1.3fr 1fr 0.9fr 0.9fr 0.7fr",
                 padding: "16px",
                 borderBottom: "1px solid rgba(30,45,69,0.5)",
                 alignItems: "center",
@@ -564,6 +574,26 @@ export default function HistoryPage({
                   </div>
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                     {isBorrow ? "Collateral posted" : isRepay ? "Debt reduced" : "Contract interaction"}
+                  </div>
+                </div>
+
+                {/* Gas Cost */}
+                <div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 500, color: "#f59e0b" }}>
+                    {tx.gasCostEth != null ? `${tx.gasCostEth.toFixed(6)}` : "—"}
+                  </div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                    {tx.gasCostEth != null ? `≈ $${(tx.gasCostEth * ethPrice).toFixed(4)}` : "ETH"}
+                  </div>
+                </div>
+
+                {/* Execution Time */}
+                <div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: "13px", fontWeight: 500 }}>
+                    {tx.timeStamp ? formatTimeAgo(tx.timeStamp) : "—"}
+                  </div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                    {tx.confirmations != null ? `${tx.confirmations.toLocaleString()} blocks` : "confirmed"}
                   </div>
                 </div>
 
