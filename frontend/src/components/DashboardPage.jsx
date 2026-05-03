@@ -1,4 +1,5 @@
 import { getTier, getHealthColor, getCollateralRatioFromTier } from "../utils/contracts";
+import { formatEtcUsd, etcPegLabel, etcUsdLabel, etcPriceUsd } from "../utils/etcPrice";
 
 function StatCard({ label, value, sub, icon, accent, loading }) {
   return (
@@ -34,14 +35,14 @@ function StatCard({ label, value, sub, icon, accent, loading }) {
   );
 }
 
-export default function DashboardPage({ address, ethBalance, ethPrice, position, creditScore, signer }) {
+export default function DashboardPage({ address, ethBalance, ethPrice, position, creditScore, signer, etcBalance }) {
   const tier = getTier(creditScore);
   const loading = !signer;
-
-  const usxBalance = position.debt || 0;
+  const etcBal = etcBalance || 0;
   const collateralUsd = (position.collateral * ethPrice).toFixed(2);
+  const etcPrice = etcPriceUsd(ethPrice);
   const healthFactor = position.debt > 0
-    ? ((position.collateral * ethPrice) / (position.debt * getCollateralRatioFromTier(creditScore) / 100)).toFixed(2)
+    ? ((position.collateral * ethPrice) / (position.debt * etcPrice * getCollateralRatioFromTier(creditScore) / 100)).toFixed(2)
     : "∞";
   const hfColor = healthFactor === "∞" ? "#10b981" : getHealthColor(parseFloat(healthFactor));
 
@@ -73,15 +74,26 @@ export default function DashboardPage({ address, ethBalance, ethPrice, position,
         <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
           Manage your portfolio and active credit positions.
         </p>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: "6px",
+          padding: "4px 12px", marginTop: "8px",
+          background: "rgba(124,58,237,0.1)",
+          border: "1px solid rgba(124,58,237,0.25)",
+          borderRadius: "20px",
+          fontSize: "11px", fontFamily: "var(--font-mono)", color: "#a78bfa",
+        }}>
+          ◈ {etcPegLabel(ethPrice)} • {etcUsdLabel(ethPrice)}
+        </div>
       </div>
 
       {/* Top stats */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
         <StatCard
           label="ETC Balance"
-          value={usxBalance > 0 ? usxBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"}
-          sub={usxBalance > 0 ? "+2.4% this week" : "No active debt"}
+          value={etcBal > 0 ? etcBal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "0.00"}
+          sub={etcBal > 0 ? `≈ ${formatEtcUsd(etcBal, ethPrice)} USD` : "No ETC holdings"}
           icon="◎"
+          accent="#a78bfa"
           loading={loading}
         />
         <StatCard
@@ -292,7 +304,7 @@ export default function DashboardPage({ address, ethBalance, ethPrice, position,
             padding: "40px", textAlign: "center",
             color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "13px",
           }}>
-            No active positions. Deposit ETC to mint ETC.
+            No active positions. Deposit ETH to mint ETC.
           </div>
         )}
       </div>

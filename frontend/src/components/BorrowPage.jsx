@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { ethers } from "ethers";
 import { depositAndMint, getTier, getCollateralRatioFromTier } from "../utils/contracts";
+import { ETC_PER_ETH, formatEtcUsd, etcPegLabel, etcUsdLabel } from "../utils/etcPrice";
 
 export default function BorrowPage({
   signer,
@@ -25,7 +26,9 @@ export default function BorrowPage({
   const normalRatio = 150;
 
   const ethVal = parseFloat(ethAmount) || 0;
-  const usxOut = ethVal > 0 ? (ethVal * ethPrice * (100 / requiredRatio)).toFixed(2) : "0.00";
+  const etcOut = ethVal > 0 ? (ethVal * ETC_PER_ETH * 100 / requiredRatio) : 0;
+  const etcOutFormatted = etcOut > 0 ? etcOut.toFixed(2) : "0.00";
+  const etcOutUsd = etcOut > 0 ? formatEtcUsd(etcOut, ethPrice) : "$0.00";
   const liquidationPrice = ethVal > 0 ? (ethPrice * 0.86).toFixed(2) : "0.00";
   const borrowAPR = creditScore > 85 ? 2.0 : creditScore > 60 ? 2.2 : creditScore > 30 ? 2.5 : 3.0;
 
@@ -214,11 +217,19 @@ export default function BorrowPage({
               <div style={{
                 flex: 1, textAlign: "right",
                 fontFamily: "var(--font-mono)", fontSize: "22px", fontWeight: 500,
-                color: parseFloat(usxOut) > 0 ? "var(--text-primary)" : "var(--text-muted)",
+                color: etcOut > 0 ? "var(--text-primary)" : "var(--text-muted)",
               }}>
-                {parseFloat(usxOut) > 0 ? parseFloat(usxOut).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
+                {etcOut > 0 ? parseFloat(etcOutFormatted).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "0.00"}
               </div>
             </div>
+            {etcOut > 0 && (
+              <div style={{
+                marginTop: "8px", fontSize: "12px",
+                fontFamily: "var(--font-mono)", color: "#a78bfa",
+              }}>
+                ≈ {etcOutUsd} USD
+              </div>
+            )}
           </div>
 
           {/* Error / Success */}
@@ -440,6 +451,8 @@ export default function BorrowPage({
             }}>Transaction Overview</div>
 
             {[
+              { label: "Exchange Rate",       value: etcPegLabel(ethPrice) },
+              { label: "ETC Price",           value: etcUsdLabel(ethPrice) },
               { label: "Oracle Price (ETH)",  value: `$${ethPrice.toLocaleString("en-US")}` },
               { label: "Liquidation Price",   value: `$${parseFloat(liquidationPrice).toLocaleString("en-US")}`, red: true },
               { label: "Borrow APR",          value: `${borrowAPR}%` },

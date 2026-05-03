@@ -6,6 +6,40 @@ import { getTransactionHistory } from "./connect";
 const CDP_ADDRESS = import.meta.env.VITE_CDP_ADDRESS;
 const NFT_ADDRESS = import.meta.env.VITE_NFT_ADDRESS;
 
+// Minimal ERC-20 ABI for balance reads
+const ETC_ERC20_ABI = [
+  "function balanceOf(address account) view returns (uint256)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+];
+
+// Cache the ETC token address so we only look it up once
+let _cachedEtcAddress = null;
+
+export async function getEtcTokenAddress(signer) {
+  if (_cachedEtcAddress) return _cachedEtcAddress;
+  try {
+    const { cdp } = getContracts(signer);
+    const addr = await cdp.etc();
+    _cachedEtcAddress = addr;
+    return addr;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchEtcBalance(signer, address) {
+  try {
+    const etcAddr = await getEtcTokenAddress(signer);
+    if (!etcAddr) return 0;
+    const etc = new ethers.Contract(etcAddr, ETC_ERC20_ABI, signer.provider || signer);
+    const raw = await etc.balanceOf(address);
+    return parseFloat(ethers.formatUnits(raw, 18));
+  } catch {
+    return 0;
+  }
+}
+
 export function getContracts(signer) {
   if (!signer) {
     throw new Error("Wallet signer is required.");

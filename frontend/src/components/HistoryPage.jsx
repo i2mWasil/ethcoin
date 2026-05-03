@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchDebtActivity, getCollateralRatioFromTier, getTier, repayDebt } from "../utils/contracts";
+import { formatEtcUsd, etcPegLabel, etcUsdLabel } from "../utils/etcPrice";
 
 const EMPTY_ACTIVITY = [];
 
@@ -99,6 +100,7 @@ export default function HistoryPage({
   refreshKey,
   refresh,
   syncCreditScore,
+  ethPrice,
 }) {
   const [historyState, setHistoryState] = useState({ address: "", cacheKey: "", txs: EMPTY_ACTIVITY });
   const [repaying, setRepaying] = useState(false);
@@ -205,7 +207,7 @@ export default function HistoryPage({
         <StatCard
           label="Outstanding Debt"
           value={`${formatAmount(position.debt)} ETC`}
-          sub={position.debt > 0 ? "Ready to be settled now" : "No balance due"}
+          sub={position.debt > 0 ? `≈ ${formatEtcUsd(position.debt, ethPrice)} USD` : "No balance due"}
           accent={position.debt > 0 ? "#f59e0b" : "#10b981"}
         />
         <StatCard
@@ -216,12 +218,12 @@ export default function HistoryPage({
         <StatCard
           label="Lifetime Borrowed"
           value={`${formatAmount(totalBorrowed)} ETC`}
-          sub={`${borrowCount} borrow event${borrowCount === 1 ? "" : "s"} recorded`}
+          sub={totalBorrowed > 0 ? `≈ ${formatEtcUsd(totalBorrowed, ethPrice)}` : `${borrowCount} events`}
         />
         <StatCard
           label="Lifetime Repaid"
           value={`${formatAmount(totalRepaid)} ETC`}
-          sub={`${repayCount} repayment event${repayCount === 1 ? "" : "s"} settled`}
+          sub={totalRepaid > 0 ? `≈ ${formatEtcUsd(totalRepaid, ethPrice)}` : `${repayCount} events`}
           accent="#10b981"
         />
       </div>
@@ -551,7 +553,7 @@ export default function HistoryPage({
                     {amountLabel}
                   </div>
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                    {amountSubLabel}
+                    {typeof tx.amount === "number" && ethPrice ? `≈ ${formatEtcUsd(tx.amount, ethPrice)}` : amountSubLabel}
                   </div>
                 </div>
 

@@ -10,6 +10,8 @@ import "./CreditScoreNFT.sol";
  *         The required collateral ratio is determined by the user's
  *         on-chain credit score stored in CreditScoreNFT.
  *
+ *         Exchange rate: 1 ETH = ETC_PER_ETH ETC (fixed at 2 334.92).
+ *
  * Events emitted here are the triggers that the off-chain scorer service
  * listens to so it knows when to recompute and push an updated score.
  */
@@ -17,6 +19,13 @@ contract CDP {
 
     ETC public etc;
     CreditScoreNFT public creditNFT;
+
+    // ------------------------------------------------------------------
+    // Exchange rate:  1 ETH = 2 334.92 ETC
+    // Stored as 233492 with a RATE_SCALE of 100 to avoid floating point.
+    // ------------------------------------------------------------------
+    uint256 public constant ETC_PER_ETH  = 233492;
+    uint256 public constant RATE_SCALE   = 100;
 
     struct Position {
         uint256 collateral; // wei
@@ -87,13 +96,15 @@ contract CDP {
 
     /**
      * @notice Deposit ETH and mint ETC proportional to the collateral ratio.
+     *         At 100 % ratio, 1 ETH → 2 334.92 ETC.
      *         Emits {LoanTaken}.
      */
     function depositAndMint() external payable {
         require(msg.value > 0, "No ETH");
 
         uint256 ratio = getCollateralRatio(msg.sender);
-        uint256 mintAmount = (msg.value * 100) / ratio;
+        // mintAmount = ethAmount * (ETC_PER_ETH / RATE_SCALE) * (100 / ratio)
+        uint256 mintAmount = (msg.value * ETC_PER_ETH * 100) / (ratio * RATE_SCALE);
 
         positions[msg.sender].collateral += msg.value;
         positions[msg.sender].debt       += mintAmount;
@@ -104,15 +115,18 @@ contract CDP {
     }
 
     /**
-     * @notice Repay ETC debt. msg.value carries the repayment amount in
-     *         the same unit as debt (18-decimal ETC).
+     * @notice Repay ETC debt by sending ETH. The ETH amount is converted
+     *         to ETC at the same fixed rate used during minting.
      *         Emits {LoanRepaid}.
      */
     function repay() external payable {
         Position storage pos = positions[msg.sender];
         require(pos.debt > 0, "No debt");
 
-        uint256 repayAmount = msg.value;
+        // Convert ETH sent → ETC units at the fixed rate
+        uint256 repayAmount = (msg.value * ETC_PER_ETH) / RATE_SCALE;
+        require(repayAmount <= pos.debt, "Repay exceeds debt");
+
         pos.debt -= repayAmount;
 
         etc.burn(msg.sender, repayAmount);

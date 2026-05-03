@@ -177,6 +177,7 @@ export default function LandingPage({ onConnect, loading }) {
           marginBottom: "40px",
         }}>
           {[
+            { label: "Exchange Rate",   value: "2,334.92" },
             { label: "Min. Collateral", value: "100%" },
             { label: "Base APR",       value: "2.5%"  },
             { label: "Network",        value: "Sepolia" },

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getTier } from "../utils/contracts";
+import { formatEtcUsd, etcPegLabel, etcUsdLabel } from "../utils/etcPrice";
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: "▦" },
@@ -13,7 +14,7 @@ function shortAddr(addr) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
-export default function Layout({ children, page, setPage, address, creditScore, onConnect }) {
+export default function Layout({ children, page, setPage, address, creditScore, onConnect, etcBalance, ethPrice }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const tier = getTier(creditScore);
 
@@ -179,6 +180,62 @@ export default function Layout({ children, page, setPage, address, creditScore, 
               color: "var(--text-secondary)",
               fontFamily: "var(--font-body)",
             }}>AI-Driven DeFi</div>
+          </div>
+
+          {/* ETC Balance + Peg Rate */}
+          <div style={{
+            padding: "10px 12px",
+            marginBottom: "16px",
+            background: "linear-gradient(135deg, rgba(124,58,237,0.1), rgba(79,70,229,0.05))",
+            borderRadius: "12px",
+            border: "1px solid rgba(124,58,237,0.2)",
+          }}>
+            <div style={{
+              fontSize: "10px",
+              color: "var(--text-muted)",
+              fontFamily: "var(--font-mono)",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              marginBottom: "6px",
+            }}>ETC Balance</div>
+            <div style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "18px",
+              fontWeight: 600,
+              color: "#a78bfa",
+              letterSpacing: "-0.5px",
+              marginBottom: "2px",
+            }}>
+              {(etcBalance || 0) > 0
+                ? (etcBalance).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+                : "0.00"}
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "4px" }}>ETC</span>
+            </div>
+            <div style={{
+              fontSize: "11px",
+              color: "var(--text-muted)",
+              fontFamily: "var(--font-mono)",
+              marginBottom: "6px",
+            }}>
+              {(etcBalance || 0) > 0 ? `≈ ${formatEtcUsd(etcBalance, ethPrice)}` : "—"}
+            </div>
+            <div style={{
+              fontSize: "9px",
+              color: "#7c3aed",
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.5px",
+            }}>
+              {etcPegLabel(ethPrice)}
+            </div>
+            <div style={{
+              fontSize: "9px",
+              color: "var(--text-muted)",
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.5px",
+              marginTop: "2px",
+            }}>
+              {etcUsdLabel(ethPrice)}
+            </div>
           </div>
 
           {NAV_ITEMS.map(item => (
