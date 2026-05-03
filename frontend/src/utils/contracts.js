@@ -116,7 +116,13 @@ export async function repayDebt(signer) {
     throw new Error("No debt to repay.");
   }
 
-  const tx = await cdp.repay({ value: pos.debt });
+  // Contract converts ETH → ETC at rate: repayEtc = (ethSent * 233492) / 100
+  // So to repay `debt` ETC we need:       ethSent  = (debt * 100) / 233492
+  const ETC_PER_ETH = 233492n;
+  const RATE_SCALE  = 100n;
+  const ethValue = (pos.debt * RATE_SCALE) / ETC_PER_ETH;
+
+  const tx = await cdp.repay({ value: ethValue });
   return tx.wait();
 }
 

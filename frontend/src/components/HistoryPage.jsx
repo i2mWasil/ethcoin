@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchDebtActivity, getCollateralRatioFromTier, getTier, repayDebt } from "../utils/contracts";
-import { formatEtcUsd, etcPegLabel, etcUsdLabel } from "../utils/etcPrice";
+import { formatEtcUsd, etcPegLabel, etcUsdLabel, ethToEtc } from "../utils/etcPrice"; 
 
 const EMPTY_ACTIVITY = [];
 
@@ -114,7 +114,8 @@ export default function HistoryPage({
   const loadingTxs = Boolean(activityKey) && historyState.cacheKey !== activityKey;
   const tier = getTier(creditScore);
   const requiredRatio = getCollateralRatioFromTier(creditScore);
-  const currentRatio = position.debt > 0 ? (position.collateral / position.debt) * 100 : 0;
+  const collateralInEtc = ethToEtc(position.collateral);
+  const currentRatio = position.debt > 0 ? (collateralInEtc / position.debt) * 100 : 0;
   const safetyBuffer = position.debt > 0 ? currentRatio - requiredRatio : 0;
   const debtHealth = getDebtHealth(currentRatio, requiredRatio);
 
